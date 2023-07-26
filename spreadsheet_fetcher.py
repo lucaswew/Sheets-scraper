@@ -376,41 +376,62 @@ def scrape_and_save_content(links, spreadsheet):
 
     def process_link(link):
         response = requests.get(link, headers={'User-Agent': user_agent})
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.content, 'html.parser')
-            title = "Title not found"
-            try:
-                title_tag = soup.find('title')
-                if title_tag:
-                    title = title_tag.get_text()
-            except AttributeError:
-                pass
+    if response.status_code == 200:
+        soup = BeautifulSoup(response.content, 'html.parser')
+        title = "Title not found"
+        try:
+            title_tag = soup.find('title')
+            if title_tag:
+                title = title_tag.get_text()
+        except AttributeError:
+            pass
 
-            # Check if the link is pandabuy or weidian link
-            if 'pandabuy' in link:
-                # Append the pandabuy link and title to the Pandabuy Links sheet
-                pandabuy_sheet.append_row([link, title])
-            elif 'weidian.com' in link:
-                # Append the weidian link and title to the Weidian Links sheet
-                weidian_sheet.append_row([link, title])
+        # Check if the link is pandabuy or weidian link
+        if 'pandabuy' in link:
+            # Append the pandabuy link and title to the Pandabuy Links sheet
+            pandabuy_sheet.append_row([link, title])
+        elif 'weidian.com' in link:
+            # Append the weidian link and title to the Weidian Links sheet
+            weidian_sheet.append_row([link, title])
 
-            # Check for spreadsheet links and append them as well
-            spreadsheet_links = []
-            for a_tag in soup.find_all('a', href=True):
-                href = a_tag['href']
-                if href.endswith('.csv') or href.endswith('.xls') or href.endswith('.xlsx'):
-                    spreadsheet_links.append(href)
-            
-            for spreadsheet_link in spreadsheet_links:
-                if 'pandabuy' in spreadsheet_link:
-                    # Append the pandabuy spreadsheet link to the Pandabuy Links sheet
-                    pandabuy_sheet.append_row([f"Spreadsheet Link: {spreadsheet_link}", ""])
-                elif 'weidian.com' in spreadsheet_link:
-                    # Append the weidian spreadsheet link to the Weidian Links sheet
-                    weidian_sheet.append_row([f"Spreadsheet Link: {spreadsheet_link}", ""])
+        # Check for spreadsheet links and append them as well
+        spreadsheet_links = []
+        for a_tag in soup.find_all('a', href=True):
+            href = a_tag['href']
+            if href.endswith('.csv') or href.endswith('.xls') or href.endswith('.xlsx'):
+                spreadsheet_links.append(href)
 
-            # Add a delay to avoid overloading the server
-            time.sleep(0.5)  # Reduce the delay as needed
+        for spreadsheet_link in spreadsheet_links:
+            if 'pandabuy' in spreadsheet_link:
+                # Append the pandabuy spreadsheet link to the Pandabuy Links sheet
+                pandabuy_sheet.append_row([f"Spreadsheet Link: {spreadsheet_link}", ""])
+            elif 'weidian.com' in spreadsheet_link:
+                # Append the weidian spreadsheet link to the Weidian Links sheet
+                weidian_sheet.append_row([f"Spreadsheet Link: {spreadsheet_link}", ""])
+
+        # Add a delay to avoid overloading the server
+        time.sleep(0.5)  # Reduce the delay as needed
+
+    def process_post(submission):
+    # Process the main post for pandabuy and weidian links
+        url = submission.url
+    if 'pandabuy' in url:
+        pandabuy_links.append(url)
+    elif 'weidian.com' in url:
+        weidian_links.append(url)
+
+    # Process the comments for pandabuy and weidian links
+    submission.comments.replace_more(limit=None)
+    for comment in submission.comments.list():
+        comment_text = comment.body
+        if 'pandabuy' in comment_text:
+            pandabuy_links.append(comment_text)
+        elif 'weidian.com' in comment_text:
+            weidian_links.append(comment_text)
+
+    # Save progress after processing each post
+    with open(progress_file, 'w') as f:
+        f.write(str(i))
 
     # Use multi-threading to process links concurrently
     with ThreadPoolExecutor() as executor:
